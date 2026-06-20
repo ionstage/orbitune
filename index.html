@@ -150,6 +150,28 @@
       color: #7986CB;
       font-size: 10px;
     }
+
+    .gui-file-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      color: #ccc;
+      cursor: pointer;
+      height: 20px;
+      border-radius: 3px;
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      font-size: 10px;
+      text-align: left;
+      padding: 0 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gui-file-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.40);
+    }
   </style>
   <script type="module">
     import * as THREE from './js/lib/three/0.171.0/three.module.min.js';
@@ -238,60 +260,96 @@
       composer.render();
     }
 
-    let mixer;
+    let mixer = null;
     let actions = {};
+    let currentModel = null;
 
-    loader.load('./001.glb', function (gltf) {
-      const model = gltf.scene;
-
-      if (gltf.animations && gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(model);
-        gltf.animations.forEach((clip) => {
-          const action = mixer.clipAction(clip);
-          actions[clip.name] = action;
-        });
-        actions['Action'].play();
-      }
-
-      model.traverse(function (child) {
-        if (child.name in objects) {
-          objects[child.name] = child;
-        }
+    function disposeModel() {
+      if (!currentModel) return;
+      scene.remove(currentModel);
+      currentModel.traverse(child => {
         if (child.isMesh) {
-          if (child.geometry) {
-            child.geometry.computeVertexNormals();
-            if (child.geometry.morphAttributes.position) {
-              if (!child.geometry.morphAttributes.normal) {
-                const morphPositions = child.geometry.morphAttributes.position;
-                const morphNormals = [];
-                for (let i = 0; i < morphPositions.length; i++) {
-                  const morphGeometry = child.geometry.clone();
-                  morphGeometry.setAttribute('position', morphPositions[i]);
-                  morphGeometry.computeVertexNormals();
-                  morphNormals.push(morphGeometry.attributes.normal);
-                }
-                child.geometry.morphAttributes.normal = morphNormals;
-              }
-            }
+          child.geometry?.dispose();
+          if (Array.isArray(child.material)) {
+            child.material.forEach(m => m.dispose());
+          } else {
+            child.material?.dispose();
           }
-          const oldMat = child.material;
-
-          child.material = new THREE.MeshToonMaterial({
-            map: oldMat.map ?? null,
-            color: oldMat.color ?? 0xffffff,
-          });
-          child.castShadow = true;
-          child.receiveShadow = true;
         }
       });
+      if (mixer) {
+        mixer.stopAllAction();
+        mixer.uncacheRoot(currentModel);
+        mixer = null;
+        actions = {};
+      }
+      currentModel = null;
+    }
 
-      scene.add(model);
+    function loadModel(url, revokeUrl) {
+      loader.load(url, function (gltf) {
+        disposeModel();
 
-      lastTime = performance.now();
-      loaded = true;
-    }, undefined, function (error) {
-      console.error(error);
-    });
+        const model = gltf.scene;
+
+        if (gltf.animations && gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(model);
+          gltf.animations.forEach((clip) => {
+            const action = mixer.clipAction(clip);
+            actions[clip.name] = action;
+          });
+          const firstAction = actions['Action'] || Object.values(actions)[0];
+          if (firstAction) firstAction.play();
+        }
+
+        model.traverse(function (child) {
+          if (child.name in objects) {
+            objects[child.name] = child;
+          }
+          if (child.isMesh) {
+            if (child.geometry) {
+              child.geometry.computeVertexNormals();
+              if (child.geometry.morphAttributes.position) {
+                if (!child.geometry.morphAttributes.normal) {
+                  const morphPositions = child.geometry.morphAttributes.position;
+                  const morphNormals = [];
+                  for (let i = 0; i < morphPositions.length; i++) {
+                    const morphGeometry = child.geometry.clone();
+                    morphGeometry.setAttribute('position', morphPositions[i]);
+                    morphGeometry.computeVertexNormals();
+                    morphNormals.push(morphGeometry.attributes.normal);
+                  }
+                  child.geometry.morphAttributes.normal = morphNormals;
+                }
+              }
+            }
+            const oldMat = child.material;
+
+            child.material = new THREE.MeshToonMaterial({
+              map: oldMat.map ?? null,
+              color: oldMat.color ?? 0xffffff,
+            });
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        currentModel = model;
+        scene.add(model);
+
+        if (revokeUrl) URL.revokeObjectURL(url);
+
+        if (!loaded) {
+          lastTime = performance.now();
+          loaded = true;
+        }
+      }, undefined, function (error) {
+        console.error(error);
+        if (revokeUrl) URL.revokeObjectURL(url);
+      });
+    }
+
+    loadModel('./001.glb', false);
 
     const composer = new EffectComposer(effect);
 
@@ -457,6 +515,41 @@
 
     const f1 = v => v.toFixed(1);
     const fπ = v => (v / Math.PI).toFixed(2) + 'π';
+
+    function addFileLoader() {
+      const row = document.createElement('div');
+      row.className = 'gui-row';
+
+      const lbl = document.createElement('span');
+      lbl.className = 'gui-label';
+      lbl.textContent = 'Load GLB';
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.glb,.gltf';
+      fileInput.style.display = 'none';
+
+      const btn = document.createElement('button');
+      btn.className = 'gui-file-btn';
+      btn.textContent = 'Choose file…';
+      btn.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        btn.textContent = file.name;
+        fileInput.value = '';
+        loadModel(URL.createObjectURL(file), true);
+      });
+
+      row.appendChild(lbl);
+      row.appendChild(btn);
+      row.appendChild(fileInput);
+      guiBody.appendChild(row);
+    }
+
+    addSection('Model');
+    addFileLoader();
 
     fetch('./color-palette.json')
       .then(r => r.json())
