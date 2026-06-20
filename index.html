@@ -249,8 +249,8 @@
     };
 
     function onFrame(timestamp, deltaTime) {
-      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2400 + params.rotStartAngle);
-      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4800;
+      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2375 + params.rotStartAngle);
+      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4750;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
@@ -497,8 +497,8 @@
     };
 
     function onFrame(timestamp, deltaTime) {
-      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2400 + params.rotStartAngle);
-      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4800;
+      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2375 + params.rotStartAngle);
+      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4750;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
