@@ -170,6 +170,7 @@
       rotCenterY:         0.5,
       rotRange:           0.2,
       rotStartAngle:      Math.PI,
+      rotFrames:          96,
       ambientIntensity:   4.6,
       dirIntensity:       0.4,
       dirLightX:          5,
@@ -228,7 +229,7 @@
 
     function onFrame(timestamp, deltaTime) {
       cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2400 + params.rotStartAngle);
-      cameraGroup.rotation.y += Math.PI/48;
+      cameraGroup.rotation.y += (Math.PI * 2) / params.rotFrames;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
@@ -470,9 +471,10 @@
         addSlider('Look At Z', 'lookAtZ',        -5,  5,   0.1,  f1);
 
         addSection('Camera Orbit');
-        addSlider('Center Y',    'rotCenterY',    -2,         3,          0.1, f1);
-        addSlider('Range',       'rotRange',       0,         3,          0.1, f1);
-        addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, 0.01, fπ);
+        addSlider('Center Y',    'rotCenterY',    -2,         3,          0.1,   f1);
+        addSlider('Range',       'rotRange',       0,         3,          0.1,   f1);
+        addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, 0.01,  fπ);
+        addSlider('Frames/Rev',  'rotFrames',      24,        480,        1,     v => v.toFixed(0));
 
         addSection('Ambient Light');
         addSlider('Intensity', 'ambientIntensity', 0, 30, 0.1, f1, v => { ambientLight.intensity = v; });
