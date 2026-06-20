@@ -262,6 +262,8 @@
     let mixer = null;
     let actions = {};
     let currentModel = null;
+    let previewMode = false;
+    let exportStartFrame = 0;
 
     function disposeModel() {
       if (!currentModel) return;
@@ -365,11 +367,19 @@
     const interval = 1000 / fps;
     let lastTime = 0;
 
+    function seekMixerToFrame(frame) {
+      if (mixer) mixer.setTime(frame / fps);
+    }
+
     function animate(timestamp) {
       const deltaTime = timestamp - lastTime;
       if (loaded && deltaTime >= interval) {
         lastTime = timestamp;
-        onFrame(timestamp, deltaTime);
+        if (previewMode) {
+          onFrame(exportStartFrame * interval, 0);
+        } else {
+          onFrame(timestamp, deltaTime);
+        }
       }
       requestAnimationFrame(animate);
     }
@@ -682,6 +692,61 @@ ${'</' + 'script>'}
       guiBody.appendChild(row);
     }
 
+    function addExportPreview() {
+      const frameRow = document.createElement('div');
+      frameRow.className = 'gui-row';
+
+      const frameLbl = document.createElement('span');
+      frameLbl.className = 'gui-label';
+      frameLbl.textContent = 'Start Frame';
+
+      const frameSlider = document.createElement('input');
+      frameSlider.type = 'range';
+      frameSlider.min = 0;
+      frameSlider.max = 113;
+      frameSlider.step = 1;
+      frameSlider.value = exportStartFrame;
+
+      const frameVal = document.createElement('span');
+      frameVal.className = 'gui-val';
+      frameVal.textContent = exportStartFrame;
+
+      frameSlider.addEventListener('input', () => {
+        exportStartFrame = parseInt(frameSlider.value);
+        frameVal.textContent = exportStartFrame;
+        if (previewMode) seekMixerToFrame(exportStartFrame);
+      });
+
+      frameRow.appendChild(frameLbl);
+      frameRow.appendChild(frameSlider);
+      frameRow.appendChild(frameVal);
+      guiBody.appendChild(frameRow);
+
+      const previewRow = document.createElement('div');
+      previewRow.className = 'gui-row';
+
+      const previewLbl = document.createElement('span');
+      previewLbl.className = 'gui-label';
+      previewLbl.textContent = 'Preview';
+
+      const previewBtn = document.createElement('button');
+      previewBtn.className = 'gui-file-btn';
+      previewBtn.textContent = 'Off';
+      previewBtn.addEventListener('click', () => {
+        previewMode = !previewMode;
+        if (previewMode) {
+          seekMixerToFrame(exportStartFrame);
+          previewBtn.textContent = 'On';
+        } else {
+          previewBtn.textContent = 'Off';
+        }
+      });
+
+      previewRow.appendChild(previewLbl);
+      previewRow.appendChild(previewBtn);
+      guiBody.appendChild(previewRow);
+    }
+
     // --- GUI ---
 
     const guiToggle = document.getElementById('gui-toggle');
@@ -832,6 +897,7 @@ ${'</' + 'script>'}
     addSection('Model');
     addFileLoader();
     addExportButton();
+    addExportPreview();
 
     fetch('./color-palette.json')
       .then(r => r.json())
