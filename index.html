@@ -455,7 +455,6 @@
     }
 
     const f1 = v => v.toFixed(1);
-    const f2 = v => v.toFixed(2);
     const fπ = v => (v / Math.PI).toFixed(2) + 'π';
 
     fetch('./color-palette.json')
@@ -471,18 +470,18 @@
         addSlider('Look At Z', 'lookAtZ',        -5,  5,   0.1,  f1);
 
         addSection('Camera Orbit');
-        addSlider('Center Y',    'rotCenterY',    -2,         2,          0.01, f2);
-        addSlider('Range',       'rotRange',       0,         2,          0.01, f2);
+        addSlider('Center Y',    'rotCenterY',    -2,         3,          0.1, f1);
+        addSlider('Range',       'rotRange',       0,         3,          0.1, f1);
         addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, 0.01, fπ);
 
         addSection('Ambient Light');
-        addSlider('Intensity', 'ambientIntensity', 0, 20, 0.1, f1, v => { ambientLight.intensity = v; });
+        addSlider('Intensity', 'ambientIntensity', 0, 30, 0.1, f1, v => { ambientLight.intensity = v; });
 
         addSection('Directional Light');
-        addSlider('Intensity',  'dirIntensity', 0,   5,  0.1, f1, v => { directionalLight.intensity = v; });
-        addSlider('Position X', 'dirLightX',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-        addSlider('Position Y', 'dirLightY',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-        addSlider('Position Z', 'dirLightZ',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Intensity',  'dirIntensity', 0,   3,  0.1, f1, v => { directionalLight.intensity = v; });
+        addSlider('Position X', 'dirLightX',     0, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position Y', 'dirLightY',     0, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position Z', 'dirLightZ',     0, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
       });
   </script>
 </head>
