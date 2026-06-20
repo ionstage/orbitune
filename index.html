@@ -129,9 +129,6 @@
           child.material = new THREE.MeshToonMaterial({
             map: oldMat.map ?? null,
             color: oldMat.color ?? 0xffffff,
-            skinning: oldMat.skinning,
-            morphTargets: oldMat.morphTargets,
-            morphNormals: oldMat.morphNormals,
           });
           child.castShadow = true;
           child.receiveShadow = true;
