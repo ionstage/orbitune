@@ -248,13 +248,13 @@
     const objects = {
     };
 
-    function onFrame(timestamp, deltaTime) {
+    function onFrame(timestamp) {
       cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2375 + params.rotStartAngle);
       cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4750;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
-        mixer.update(deltaTime / 1000);
+        mixer.setTime(timestamp / 1000);
       }
       composer.render();
     }
@@ -367,18 +367,14 @@
     const interval = 1000 / fps;
     let lastTime = 0;
 
-    function seekMixerToFrame(frame) {
-      if (mixer) mixer.setTime(frame / fps);
-    }
-
     function animate(timestamp) {
       const deltaTime = timestamp - lastTime;
       if (loaded && deltaTime >= interval) {
-        lastTime = timestamp;
+        lastTime += interval;
         if (previewMode) {
-          onFrame(exportStartFrame * interval, 0);
+          onFrame(exportStartFrame * interval);
         } else {
-          onFrame(timestamp, deltaTime);
+          onFrame(timestamp);
         }
       }
       requestAnimationFrame(animate);
@@ -506,13 +502,13 @@
     const objects = {
     };
 
-    function onFrame(timestamp, deltaTime) {
+    function onFrame(timestamp) {
       cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2375 + params.rotStartAngle);
       cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4750;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
-        mixer.update(deltaTime / 1000);
+        mixer.setTime(timestamp / 1000);
       }
       composer.render();
     }
@@ -626,8 +622,8 @@
     function animate(timestamp) {
       const deltaTime = timestamp - lastTime;
       if (loaded && deltaTime >= interval) {
-        lastTime = timestamp;
-        onFrame(timestamp, deltaTime);
+        lastTime += interval;
+        onFrame(timestamp);
       }
       requestAnimationFrame(animate);
     }
@@ -714,7 +710,6 @@ ${'</' + 'script>'}
       frameSlider.addEventListener('input', () => {
         exportStartFrame = parseInt(frameSlider.value);
         frameVal.textContent = exportStartFrame;
-        if (previewMode) seekMixerToFrame(exportStartFrame);
       });
 
       frameRow.appendChild(frameLbl);
@@ -734,12 +729,7 @@ ${'</' + 'script>'}
       previewBtn.textContent = 'Off';
       previewBtn.addEventListener('click', () => {
         previewMode = !previewMode;
-        if (previewMode) {
-          seekMixerToFrame(exportStartFrame);
-          previewBtn.textContent = 'On';
-        } else {
-          previewBtn.textContent = 'Off';
-        }
+        previewBtn.textContent = previewMode ? 'On' : 'Off';
       });
 
       previewRow.appendChild(previewLbl);
