@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <style>
+    body {
+      background-color: #C5CAE9;
+      height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      position: fixed;
+      width: 100dvw;
+    }
+
+    .content {
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+  <script type="module">
+    import * as THREE from './js/lib/three/0.171.0/three.module.min.js';
+    import { OutlineEffect } from './js/lib/three/0.171.0/effects/OutlineEffect.js'
+    import { GLTFLoader } from './js/lib/three/0.171.0/loaders/GLTFLoader.js';
+    import { DRACOLoader } from './js/lib/three/0.171.0/loaders/DRACOLoader.js';
+    import { EffectComposer } from './js/lib/three/0.171.0/postprocessing/EffectComposer.js';
+    import { RenderPass } from './js/lib/three/0.171.0/postprocessing/RenderPass.js';
+    import { ShaderPass } from './js/lib/three/0.171.0/postprocessing/ShaderPass.js';
+    import { FXAAShader } from './js/lib/three/0.171.0/shaders/FXAAShader.js';
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 2;
+
+    const cameraGroup = new THREE.Group();
+    cameraGroup.add(camera);
+    scene.add(cameraGroup);
+
+    const renderer = new THREE.WebGLRenderer({
+      canvas: document.querySelector('.content'),
+      alpha: true,
+    });
+
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const effect = new OutlineEffect(renderer, {
+      defaultThickness: 0.003,
+      defaultColor: [0x3E/0xff, 0x27/0xff, 0x23/0xff],
+      defaultAlpha: 1.0,
+      defaultKeepAlive: true,
+    });
+
+    // XXX: delegate function
+    effect.getRenderTarget = renderer.getRenderTarget.bind(renderer);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 4.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    const material = new THREE.MeshToonMaterial({
+      vertexColors: false,
+    });
+
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('./js/lib/three/0.171.0/libs/draco/');
+
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+
+    let loaded = false;
+
+    const objects = {
+    };
+
+    function onFrame(timestamp, deltaTime) {
+      cameraGroup.position.y = 0.5 + 0.2 * Math.sin(Math.PI*timestamp/2400 + Math.PI);
+      cameraGroup.rotation.y += Math.PI/48;
+      camera.lookAt(0, 0, 0);
+
+      if (mixer) {
+        mixer.update(deltaTime / 1000);
+      }
+      composer.render();
+    }
+
+    let mixer;
+    let actions = {};
+
+    loader.load('./001.glb', function (gltf) {
+      const model = gltf.scene;
+
+      if (gltf.animations && gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(model);
+        gltf.animations.forEach((clip) => {
+          const action = mixer.clipAction(clip);
+          actions[clip.name] = action;
+        });
+        actions['Action'].play();
+      }
+
+      model.traverse(function (child) {
+        if (child.name in objects) {
+          objects[child.name] = child;
+        }
+        if (child.isMesh) {
+          if (child.geometry) {
+            child.geometry.computeVertexNormals();
+            if (child.geometry.morphAttributes.position) {
+              if (!child.geometry.morphAttributes.normal) {
+                const morphPositions = child.geometry.morphAttributes.position;
+                const morphNormals = [];
+                for (let i = 0; i < morphPositions.length; i++) {
+                  const morphGeometry = child.geometry.clone();
+                  morphGeometry.setAttribute('position', morphPositions[i]);
+                  morphGeometry.computeVertexNormals();
+                  morphNormals.push(morphGeometry.attributes.normal);
+                }
+                child.geometry.morphAttributes.normal = morphNormals;
+              }
+            }
+          }
+          const oldMat = child.material;
+
+          child.material = new THREE.MeshToonMaterial({
+            map: oldMat.map ?? null,
+            color: oldMat.color ?? 0xffffff,
+            skinning: oldMat.skinning,
+            morphTargets: oldMat.morphTargets,
+            morphNormals: oldMat.morphNormals,
+          });
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      scene.add(model);
+
+      lastTime = performance.now();
+      loaded = true;
+    }, undefined, function (error) {
+      console.error(error);
+    });
+
+    const composer = new EffectComposer(effect);
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const fxaaPass = new ShaderPass(FXAAShader);
+    composer.addPass(fxaaPass);
+
+    // XXX: prevent black screen at loading
+    composer.render();
+
+    const fps = 24;
+    const interval = 1000 / fps;
+    let lastTime = 0;
+
+    function animate(timestamp) {
+      const deltaTime = timestamp - lastTime;
+      if (loaded && deltaTime >= interval) {
+        lastTime = timestamp;
+        onFrame(timestamp, deltaTime);
+      }
+      requestAnimationFrame(animate);  
+    }
+
+    function onResize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      renderer.setPixelRatio(window.devicePixelRatio >= 2 ? 2 : 1);
+      renderer.setSize(width, height, false);
+
+      composer.setPixelRatio(window.devicePixelRatio >= 2 ? 2 : 1);
+      composer.setSize(width, height);
+
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+
+      fxaaPass.material.uniforms['resolution'].value.x = 1 / (width * window.devicePixelRatio * 2);
+      fxaaPass.material.uniforms['resolution'].value.y = 1 / (height * window.devicePixelRatio * 2);
+    }
+
+    let timeout = 0;
+    onResize();
+    window.addEventListener('resize', () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(onResize, 100);
+    });
+
+    animate(performance.now());
+  </script>  
+</head>
+<body>
+  <canvas class="content"></canvas>
+</body>
+</html>
