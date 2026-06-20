@@ -100,14 +100,48 @@
       margin: 0;
     }
 
-    .gui-row input[type="color"] {
+    .gui-color-preview {
       flex: 1;
       height: 20px;
-      border: none;
       border-radius: 3px;
       cursor: pointer;
-      background: none;
-      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      transition: border-color 0.15s;
+    }
+
+    .gui-color-preview:hover {
+      border-color: rgba(255, 255, 255, 0.50);
+    }
+
+    .gui-palette {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px 12px 6px;
+    }
+
+    .gui-palette-row {
+      display: flex;
+      gap: 2px;
+    }
+
+    .gui-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      cursor: pointer;
+      box-sizing: border-box;
+      border: 1px solid transparent;
+    }
+
+    .gui-swatch:hover {
+      border-color: rgba(255, 255, 255, 0.70);
+    }
+
+    .gui-swatch.selected {
+      border-color: #fff;
+      outline: 1px solid rgba(0, 0, 0, 0.50);
+      outline-offset: 0px;
     }
 
     .gui-val {
@@ -326,7 +360,7 @@
       guiBody.appendChild(el);
     }
 
-    function addColor(label, key, onChange) {
+    function addPalette(label, key, palette, onChange) {
       const row = document.createElement('div');
       row.className = 'gui-row';
 
@@ -334,17 +368,59 @@
       lbl.className = 'gui-label';
       lbl.textContent = label;
 
-      const input = document.createElement('input');
-      input.type = 'color';
-      input.value = params[key];
-      input.addEventListener('input', () => {
-        params[key] = input.value;
-        onChange(params[key]);
-      });
+      const preview = document.createElement('div');
+      preview.className = 'gui-color-preview';
+      preview.style.backgroundColor = params[key];
+      preview.title = 'Click to toggle palette';
+
+      const hexVal = document.createElement('span');
+      hexVal.className = 'gui-val';
+      hexVal.textContent = params[key];
 
       row.appendChild(lbl);
-      row.appendChild(input);
+      row.appendChild(preview);
+      row.appendChild(hexVal);
       guiBody.appendChild(row);
+
+      const grid = document.createElement('div');
+      grid.className = 'gui-palette';
+      grid.style.display = 'none';
+
+      const rowSizes = [...Array(16).fill(14), 10, 10, 10, 2];
+      let colorIndex = 0;
+
+      rowSizes.forEach(size => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'gui-palette-row';
+
+        for (let i = 0; i < size && colorIndex < palette.length; i++, colorIndex++) {
+          const color = palette[colorIndex];
+          const swatch = document.createElement('div');
+          swatch.className = 'gui-swatch';
+          swatch.style.backgroundColor = color;
+          swatch.title = color;
+          if (color === params[key]) swatch.classList.add('selected');
+
+          swatch.addEventListener('click', () => {
+            params[key] = color;
+            preview.style.backgroundColor = color;
+            hexVal.textContent = color;
+            onChange(color);
+            grid.querySelectorAll('.gui-swatch.selected').forEach(s => s.classList.remove('selected'));
+            swatch.classList.add('selected');
+          });
+
+          rowEl.appendChild(swatch);
+        }
+
+        grid.appendChild(rowEl);
+      });
+
+      preview.addEventListener('click', () => {
+        grid.style.display = grid.style.display === 'none' ? '' : 'none';
+      });
+
+      guiBody.appendChild(grid);
     }
 
     function addSlider(label, key, min, max, step, fmt, onChange) {
@@ -382,28 +458,32 @@
     const f2 = v => v.toFixed(2);
     const fπ = v => (v / Math.PI).toFixed(2) + 'π';
 
-    addSection('Background');
-    addColor('Color', 'backgroundColor', v => { document.body.style.backgroundColor = v; });
+    fetch('./color-palette.json')
+      .then(r => r.json())
+      .then(palette => {
+        addSection('Background');
+        addPalette('Color', 'backgroundColor', palette, v => { document.body.style.backgroundColor = v; });
 
-    addSection('Camera');
-    addSlider('Distance',  'cameraDistance', 0.5, 10,  0.1,  f1, v => { camera.position.z = v; });
-    addSlider('Look At X', 'lookAtX',        -5,  5,   0.1,  f1);
-    addSlider('Look At Y', 'lookAtY',        -5,  5,   0.1,  f1);
-    addSlider('Look At Z', 'lookAtZ',        -5,  5,   0.1,  f1);
+        addSection('Camera');
+        addSlider('Distance',  'cameraDistance', 0.5, 10,  0.1,  f1, v => { camera.position.z = v; });
+        addSlider('Look At X', 'lookAtX',        -5,  5,   0.1,  f1);
+        addSlider('Look At Y', 'lookAtY',        -5,  5,   0.1,  f1);
+        addSlider('Look At Z', 'lookAtZ',        -5,  5,   0.1,  f1);
 
-    addSection('Camera Orbit');
-    addSlider('Center Y',    'rotCenterY',    -2,         2,          0.01, f2);
-    addSlider('Range',       'rotRange',       0,         2,          0.01, f2);
-    addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, 0.01, fπ);
+        addSection('Camera Orbit');
+        addSlider('Center Y',    'rotCenterY',    -2,         2,          0.01, f2);
+        addSlider('Range',       'rotRange',       0,         2,          0.01, f2);
+        addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, 0.01, fπ);
 
-    addSection('Ambient Light');
-    addSlider('Intensity', 'ambientIntensity', 0, 20, 0.1, f1, v => { ambientLight.intensity = v; });
+        addSection('Ambient Light');
+        addSlider('Intensity', 'ambientIntensity', 0, 20, 0.1, f1, v => { ambientLight.intensity = v; });
 
-    addSection('Directional Light');
-    addSlider('Intensity',  'dirIntensity', 0,   5,  0.1, f1, v => { directionalLight.intensity = v; });
-    addSlider('Position X', 'dirLightX',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-    addSlider('Position Y', 'dirLightY',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-    addSlider('Position Z', 'dirLightZ',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSection('Directional Light');
+        addSlider('Intensity',  'dirIntensity', 0,   5,  0.1, f1, v => { directionalLight.intensity = v; });
+        addSlider('Position X', 'dirLightX',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position Y', 'dirLightY',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position Z', 'dirLightZ',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+      });
   </script>
 </head>
 <body>
