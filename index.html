@@ -25,7 +25,8 @@
       backdrop-filter: blur(12px);
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.10);
-      min-width: 280px;
+      width: 320px;
+      max-width: calc(100dvw - 20px);
       font-family: ui-monospace, 'Cascadia Code', monospace;
       font-size: 11px;
       color: #ccc;
@@ -94,6 +95,8 @@
 
     .gui-row input[type="range"] {
       flex: 1;
+      min-width: 0;
+      width: 0;
       accent-color: #7986CB;
       cursor: pointer;
       margin: 0;
