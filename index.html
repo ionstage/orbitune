@@ -199,7 +199,7 @@
     };
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(params.backgroundColor);
+    scene.background = new THREE.Color().setStyle(params.backgroundColor, THREE.NoColorSpace);
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = params.cameraDistance;
 
@@ -452,7 +452,7 @@
     };
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('${p.backgroundColor}');
+    scene.background = new THREE.Color().setStyle('${p.backgroundColor}', THREE.NoColorSpace);
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = params.cameraDistance;
 
@@ -922,7 +922,7 @@ ${'</' + 'script>'}
       .then(r => r.json())
       .then(palette => {
         addSection('Background');
-        addPalette('Color', 'backgroundColor', palette, v => { scene.background.set(v); });
+        addPalette('Color', 'backgroundColor', palette, v => { scene.background.setStyle(v, THREE.NoColorSpace); });
 
         addSection('Camera');
         addSlider('Distance',  'cameraDistance', 0.5, 10,  0.1,  f1, v => { camera.position.z = v; });
