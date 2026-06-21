@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 
 if (!process.argv[2]) {
-  console.error('Usage: node export.mjs <exported-index.html> [startFrame]');
+  console.error('Usage: node export.mjs <exported-index.html> [startFrame] [output.mp4]');
   process.exit(1);
 }
 
@@ -15,8 +15,8 @@ const START_FRAME = parseInt(process.argv[3] ?? '0', 10);
 const WIDTH = 1080;
 const HEIGHT = 1080;
 const FPS = 24;
-const FRAMES_DIR = path.join(HTML_DIR, 'frames');
-const OUTPUT = path.join(HTML_DIR, 'output.mp4');
+const FRAMES_DIR = path.join(process.cwd(), 'frames');
+const OUTPUT = process.argv[4] ? path.resolve(process.argv[4]) : path.join(process.cwd(), 'output.mp4');
 
 if (isNaN(START_FRAME) || START_FRAME < 0) {
   console.error('startFrame must be a non-negative integer');
@@ -69,6 +69,7 @@ async function main() {
     throw err;
   }
 
+  fs.rmSync(FRAMES_DIR, { recursive: true });
   console.log(`Done → ${OUTPUT}`);
 }
 
