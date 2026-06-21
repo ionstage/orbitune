@@ -933,7 +933,7 @@ ${'</' + 'script>'}
         addSection('Camera Orbit');
         addSlider('Center Y',    'rotCenterY',    -2,         3,          0.1,   f1);
         addSlider('Range',       'rotRange',       0,         3,          0.1,   f1);
-        addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, 0.01,  fπ);
+        addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, Math.PI * 0.05,  fπ);
 
         addSection('Ambient Light');
         addSlider('Intensity', 'ambientIntensity', 0, 30, 0.1, f1, v => { ambientLight.intensity = v; });
