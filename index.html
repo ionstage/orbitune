@@ -174,6 +174,13 @@
       background: rgba(255, 255, 255, 0.14);
       border-color: rgba(255, 255, 255, 0.40);
     }
+
+    body.square-mode {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
   </style>
   <script type="module">
     import * as THREE from './js/lib/three/0.171.0/three.module.min.js';
@@ -266,6 +273,7 @@
     let currentModel = null;
     let previewMode = false;
     let exportStartFrame = 0;
+    let squareMode = false;
 
     function disposeModel() {
       if (!currentModel) return;
@@ -383,8 +391,19 @@
     }
 
     function onResize() {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      let width, height;
+      if (squareMode) {
+        const size = Math.min(window.innerWidth, window.innerHeight);
+        width = size;
+        height = size;
+        renderer.domElement.style.width = size + 'px';
+        renderer.domElement.style.height = size + 'px';
+      } else {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        renderer.domElement.style.width = '';
+        renderer.domElement.style.height = '';
+      }
 
       renderer.setPixelRatio(window.devicePixelRatio >= 2 ? 2 : 1);
       renderer.setSize(width, height, false);
@@ -769,6 +788,29 @@ ${'</' + 'script>'}
       guiBody.appendChild(previewRow);
     }
 
+    function addViewToggle() {
+      const row = document.createElement('div');
+      row.className = 'gui-row';
+
+      const lbl = document.createElement('span');
+      lbl.className = 'gui-label';
+      lbl.textContent = 'Display';
+
+      const btn = document.createElement('button');
+      btn.className = 'gui-file-btn';
+      btn.textContent = 'Full Page';
+      btn.addEventListener('click', () => {
+        squareMode = !squareMode;
+        btn.textContent = squareMode ? 'Square' : 'Full Page';
+        document.body.classList.toggle('square-mode', squareMode);
+        onResize();
+      });
+
+      row.appendChild(lbl);
+      row.appendChild(btn);
+      guiBody.appendChild(row);
+    }
+
     // --- GUI ---
 
     const guiToggle = document.getElementById('gui-toggle');
@@ -920,6 +962,9 @@ ${'</' + 'script>'}
     addFileLoader();
     addExportButton();
     addExportPreview();
+
+    addSection('View');
+    addViewToggle();
 
     fetch('./color-palette.json')
       .then(r => r.json())
