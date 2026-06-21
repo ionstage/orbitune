@@ -43,6 +43,7 @@
       font-size: 12px;
       font-weight: bold;
       color: #fff;
+      cursor: pointer;
     }
 
     #gui-toggle {
@@ -815,8 +816,9 @@ ${'</' + 'script>'}
 
     const guiToggle = document.getElementById('gui-toggle');
     const guiBody = document.getElementById('gui-body');
+    const guiHeader = guiToggle.closest('.gui-header');
 
-    guiToggle.addEventListener('click', () => {
+    guiHeader.addEventListener('click', () => {
       const collapsed = guiBody.style.display === 'none';
       guiBody.style.display = collapsed ? '' : 'none';
       guiToggle.textContent = collapsed ? '−' : '+';
