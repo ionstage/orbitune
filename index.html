@@ -990,9 +990,9 @@ ${'</' + 'script>'}
 
         addSection('Directional Light');
         addSlider('Intensity',  'dirIntensity', 0,   3,  0.1, f1, v => { directionalLight.intensity = v; });
-        addSlider('Position X', 'dirLightX',     0, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-        addSlider('Position Y', 'dirLightY',     0, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-        addSlider('Position Z', 'dirLightZ',     0, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position X', 'dirLightX',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position Y', 'dirLightY',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Position Z', 'dirLightZ',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
       });
   </script>
 </head>
