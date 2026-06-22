@@ -4,19 +4,27 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
 
-if (!process.argv[2]) {
-  console.error('Usage: node export.mjs <exported-index.html> [startFrame] [output.mp4]');
+const fpsFlag = process.argv.indexOf('--fps');
+const FPS = fpsFlag !== -1 ? parseInt(process.argv[fpsFlag + 1], 10) : 24;
+const positional = process.argv.slice(2).filter((a, i, arr) => a !== '--fps' && arr[i - 1] !== '--fps');
+
+if (!positional[0]) {
+  console.error('Usage: node export.mjs <exported-index.html> [startFrame] [output.mp4] [--fps <n>]');
   process.exit(1);
 }
 
-const HTML_PATH = path.resolve(process.argv[2]);
+if (isNaN(FPS) || FPS <= 0) {
+  console.error('--fps must be a positive integer');
+  process.exit(1);
+}
+
+const HTML_PATH = path.resolve(positional[0]);
 const HTML_DIR = path.dirname(HTML_PATH);
-const START_FRAME = parseInt(process.argv[3] ?? '0', 10);
+const START_FRAME = parseInt(positional[1] ?? '0', 10);
 const WIDTH = 1080;
 const HEIGHT = 1080;
-const FPS = 24;
 const FRAMES_DIR = path.join(process.cwd(), 'frames');
-const OUTPUT = process.argv[4] ? path.resolve(process.argv[4]) : path.join(process.cwd(), 'output.mp4');
+const OUTPUT = positional[2] ? path.resolve(positional[2]) : path.join(process.cwd(), 'output.mp4');
 
 if (isNaN(START_FRAME) || START_FRAME < 0) {
   console.error('startFrame must be a non-negative integer');
@@ -36,6 +44,9 @@ async function main() {
     const page = await browser.newPage();
     await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: 1 });
     await page.evaluateOnNewDocument(() => { window.__orbitune_export__ = true; });
+    if (fpsFlag !== -1) {
+      await page.evaluateOnNewDocument(fps => { window.__orbitune_fps__ = fps; }, FPS);
+    }
     await page.goto(`file://${HTML_PATH}`);
     await page.waitForFunction(() => window.orbitune?.isLoaded(), { timeout: 30000 });
     await page.evaluate((w, h) => window.orbitune.init(w, h), WIDTH, HEIGHT);

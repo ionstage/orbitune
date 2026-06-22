@@ -641,7 +641,7 @@
     // XXX: prevent black screen at loading
     composer.render();
 
-    const fps = params.fps;
+    const fps = window.__orbitune_fps__ ?? params.fps;
     const interval = 1000 / fps;
     let lastTime = 0;
 
@@ -700,7 +700,7 @@
       },
 
       getLoopFrameCount() {
-        const cameraFrames = Math.round(params.fps * params.cycleDuration / 1000);
+        const cameraFrames = Math.round(fps * params.cycleDuration / 1000);
         const firstAction = Object.values(actions)[0];
         if (!firstAction) return cameraFrames;
         const clipFrames = Math.round(firstAction.getClip().duration * fps);
