@@ -259,8 +259,8 @@
     };
 
     function onFrame(timestamp) {
-      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2375 + params.rotStartAngle);
-      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4750;
+      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2500 + params.rotStartAngle);
+      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 5000;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
@@ -525,8 +525,8 @@
     };
 
     function onFrame(timestamp) {
-      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2375 + params.rotStartAngle);
-      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 4750;
+      cameraGroup.position.y = params.rotCenterY + params.rotRange * Math.sin(Math.PI * timestamp / 2500 + params.rotStartAngle);
+      cameraGroup.rotation.y = (Math.PI * 2) * timestamp / 5000;
       camera.lookAt(params.lookAtX, params.lookAtY, params.lookAtZ);
 
       if (mixer) {
@@ -696,7 +696,7 @@
       },
 
       getLoopFrameCount() {
-        const cameraFrames = 114;
+        const cameraFrames = 120;
         const firstAction = Object.values(actions)[0];
         if (!firstAction) return cameraFrames;
         const clipFrames = Math.round(firstAction.getClip().duration * fps);
@@ -751,7 +751,7 @@ ${'</' + 'script>'}
       const frameSlider = document.createElement('input');
       frameSlider.type = 'range';
       frameSlider.min = 0;
-      frameSlider.max = 113;
+      frameSlider.max = 119;
       frameSlider.step = 1;
       frameSlider.value = exportStartFrame;
 
