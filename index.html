@@ -641,7 +641,7 @@
     // XXX: prevent black screen at loading
     composer.render();
 
-    const fps = window.__orbitune_fps__ ?? params.fps;
+    const fps = params.fps;
     const interval = 1000 / fps;
     let lastTime = 0;
 
@@ -693,6 +693,8 @@
         fxaaPass.material.uniforms['resolution'].value.x = 1 / (w * 2);
         fxaaPass.material.uniforms['resolution'].value.y = 1 / (h * 2);
       },
+
+      getFps: () => fps,
 
       renderFrame(frameIndex) {
         onFrame(frameIndex * interval);

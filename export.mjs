@@ -4,27 +4,18 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
 
-const fpsFlag = process.argv.indexOf('--fps');
-const FPS = fpsFlag !== -1 ? parseInt(process.argv[fpsFlag + 1], 10) : 24;
-const positional = process.argv.slice(2).filter((a, i, arr) => a !== '--fps' && arr[i - 1] !== '--fps');
-
-if (!positional[0]) {
-  console.error('Usage: node export.mjs <exported-index.html> [startFrame] [output.mp4] [--fps <n>]');
+if (!process.argv[2]) {
+  console.error('Usage: node export.mjs <exported-index.html> [startFrame] [output.mp4]');
   process.exit(1);
 }
 
-if (isNaN(FPS) || FPS <= 0) {
-  console.error('--fps must be a positive integer');
-  process.exit(1);
-}
-
-const HTML_PATH = path.resolve(positional[0]);
+const HTML_PATH = path.resolve(process.argv[2]);
 const HTML_DIR = path.dirname(HTML_PATH);
-const START_FRAME = parseInt(positional[1] ?? '0', 10);
+const START_FRAME = parseInt(process.argv[3] ?? '0', 10);
 const WIDTH = 1080;
 const HEIGHT = 1080;
 const FRAMES_DIR = path.join(process.cwd(), 'frames');
-const OUTPUT = positional[2] ? path.resolve(positional[2]) : path.join(process.cwd(), 'output.mp4');
+const OUTPUT = process.argv[4] ? path.resolve(process.argv[4]) : path.join(process.cwd(), 'output.mp4');
 
 if (isNaN(START_FRAME) || START_FRAME < 0) {
   console.error('startFrame must be a non-negative integer');
@@ -44,15 +35,13 @@ async function main() {
     const page = await browser.newPage();
     await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: 1 });
     await page.evaluateOnNewDocument(() => { window.__orbitune_export__ = true; });
-    if (fpsFlag !== -1) {
-      await page.evaluateOnNewDocument(fps => { window.__orbitune_fps__ = fps; }, FPS);
-    }
     await page.goto(`file://${HTML_PATH}`);
     await page.waitForFunction(() => window.orbitune?.isLoaded(), { timeout: 30000 });
     await page.evaluate((w, h) => window.orbitune.init(w, h), WIDTH, HEIGHT);
 
+    const fps = await page.evaluate(() => window.orbitune.getFps());
     const frameCount = await page.evaluate(() => window.orbitune.getLoopFrameCount());
-    console.log(`Rendering ${frameCount} frames (start: ${START_FRAME}, ${WIDTH}x${HEIGHT}, ${FPS}fps)`);
+    console.log(`Rendering ${frameCount} frames (start: ${START_FRAME}, ${WIDTH}x${HEIGHT}, ${fps}fps)`);
 
     for (let i = 0; i < frameCount; i++) {
       const frameIndex = (START_FRAME + i) % frameCount;
@@ -72,7 +61,7 @@ async function main() {
   console.log('Encoding...');
   try {
     execSync(
-      `ffmpeg -y -framerate ${FPS} -i "${FRAMES_DIR}/%04d.png" -c:v libx264 -pix_fmt yuv420p -crf 18 -movflags +faststart "${OUTPUT}"`,
+      `ffmpeg -y -framerate ${fps} -i "${FRAMES_DIR}/%04d.png" -c:v libx264 -pix_fmt yuv420p -crf 18 -movflags +faststart "${OUTPUT}"`,
       { stdio: 'pipe' },
     );
   } catch (err) {
