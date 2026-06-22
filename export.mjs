@@ -31,6 +31,7 @@ async function main() {
     args: ['--no-sandbox', '--allow-file-access-from-files'],
   });
 
+  let fps;
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: WIDTH, height: HEIGHT, deviceScaleFactor: 1 });
@@ -39,7 +40,7 @@ async function main() {
     await page.waitForFunction(() => window.orbitune?.isLoaded(), { timeout: 30000 });
     await page.evaluate((w, h) => window.orbitune.init(w, h), WIDTH, HEIGHT);
 
-    const fps = await page.evaluate(() => window.orbitune.getFps());
+    fps = await page.evaluate(() => window.orbitune.getFps());
     const frameCount = await page.evaluate(() => window.orbitune.getLoopFrameCount());
     console.log(`Rendering ${frameCount} frames (start: ${START_FRAME}, ${WIDTH}x${HEIGHT}, ${fps}fps)`);
 
