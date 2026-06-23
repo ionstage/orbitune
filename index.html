@@ -992,7 +992,7 @@ ${'</' + 'script>'}
         addPalette('Color', 'backgroundColor', palette, v => { scene.background.setStyle(v, THREE.NoColorSpace); });
 
         addSection('Camera');
-        addSlider('Distance',  'cameraDistance', 0.5, 10,  0.1,  f1, v => { camera.position.z = v; });
+        addSlider('Distance',  'cameraDistance', 0.5, 6,   0.05, f2, v => { camera.position.z = v; });
         addSlider('Look At X', 'lookAtX',        -1.5, 1.5, 0.01, f2);
         addSlider('Look At Y', 'lookAtY',        -1.5, 1.5, 0.01, f2);
         addSlider('Look At Z', 'lookAtZ',        -1.5, 1.5, 0.01, f2);
