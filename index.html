@@ -942,6 +942,7 @@ ${'</' + 'script>'}
     }
 
     const f1 = v => v.toFixed(1);
+    const f2 = v => v.toFixed(2);
     const fπ = v => (v / Math.PI).toFixed(2) + 'π';
 
     function addFileLoader() {
@@ -992,9 +993,9 @@ ${'</' + 'script>'}
 
         addSection('Camera');
         addSlider('Distance',  'cameraDistance', 0.5, 10,  0.1,  f1, v => { camera.position.z = v; });
-        addSlider('Look At X', 'lookAtX',        -5,  5,   0.1,  f1);
-        addSlider('Look At Y', 'lookAtY',        -5,  5,   0.1,  f1);
-        addSlider('Look At Z', 'lookAtZ',        -5,  5,   0.1,  f1);
+        addSlider('Look At X', 'lookAtX',        -1.5, 1.5, 0.01, f2);
+        addSlider('Look At Y', 'lookAtY',        -1.5, 1.5, 0.01, f2);
+        addSlider('Look At Z', 'lookAtZ',        -1.5, 1.5, 0.01, f2);
 
         addSection('Camera Orbit');
         addSlider('Center Y',    'rotCenterY',    -2,         3,          0.1,   f1);
