@@ -255,7 +255,12 @@
     const loader = new GLTFLoader();
     loader.setDRACOLoader(dracoLoader);
 
+    // `loaded` gates the render loop and stays true once any model has shown;
+    // `modelLoaded` tracks only the latest requested model.
     let loaded = false;
+    let modelLoaded = false;
+    let loadError = null;
+    let latestLoadId = 0;
 
     const objects = {
     };
@@ -277,7 +282,11 @@
     let previewMode = false;
     let exportStartFrame = 0;
     let frameSlider;
+    let frameVal;
+    let previewBtn;
+    let displayBtn;
     let squareMode = false;
+    let liveTimestamp = 0;
 
     function disposeModel() {
       if (!currentModel) return;
@@ -302,7 +311,16 @@
     }
 
     function loadModel(url, revokeUrl) {
+      const loadId = ++latestLoadId;
+      modelLoaded = false;
+      loadError = null;
+
       loader.load(url, function (gltf) {
+        if (loadId !== latestLoadId) {
+          if (revokeUrl) URL.revokeObjectURL(url);
+          return;
+        }
+
         disposeModel();
 
         const model = gltf.scene;
@@ -351,6 +369,7 @@
 
         currentModel = model;
         scene.add(model);
+        modelLoaded = true;
 
         if (revokeUrl) URL.revokeObjectURL(url);
 
@@ -361,6 +380,7 @@
       }, undefined, function (error) {
         console.error(error);
         if (revokeUrl) URL.revokeObjectURL(url);
+        if (loadId === latestLoadId) loadError = error?.message || String(error);
       });
     }
 
@@ -384,11 +404,8 @@
       const deltaTime = timestamp - lastTime;
       if (loaded && deltaTime >= interval) {
         lastTime += interval;
-        if (previewMode) {
-          onFrame(exportStartFrame * interval);
-        } else {
-          onFrame(timestamp);
-        }
+        liveTimestamp = previewMode ? exportStartFrame * interval : timestamp;
+        onFrame(liveTimestamp);
       }
       requestAnimationFrame(animate);
     }
@@ -643,6 +660,7 @@
 
     const fps = params.fps;
     const interval = 1000 / fps;
+    const startFrame = ${exportStartFrame};
     let lastTime = 0;
 
     function animate(timestamp) {
@@ -695,6 +713,8 @@
       },
 
       getFps: () => fps,
+
+      getStartFrame: () => startFrame,
 
       renderFrame(frameIndex) {
         onFrame(frameIndex * interval);
@@ -753,7 +773,20 @@ ${'</' + 'script>'}
       if (exportStartFrame > maxFrame) {
         exportStartFrame = maxFrame;
         frameSlider.value = maxFrame;
+        frameVal.textContent = maxFrame;
       }
+    }
+
+    function setPreviewMode(enabled) {
+      previewMode = enabled;
+      previewBtn.textContent = previewMode ? 'On' : 'Off';
+    }
+
+    function setSquareMode(enabled) {
+      squareMode = enabled;
+      displayBtn.textContent = squareMode ? 'Square' : 'Full Page';
+      document.body.classList.toggle('square-mode', squareMode);
+      onResize();
     }
 
     function addExportPreview() {
@@ -771,7 +804,7 @@ ${'</' + 'script>'}
       frameSlider.step = 1;
       frameSlider.value = exportStartFrame;
 
-      const frameVal = document.createElement('span');
+      frameVal = document.createElement('span');
       frameVal.className = 'gui-val';
       frameVal.textContent = exportStartFrame;
 
@@ -792,13 +825,10 @@ ${'</' + 'script>'}
       previewLbl.className = 'gui-label';
       previewLbl.textContent = 'Preview';
 
-      const previewBtn = document.createElement('button');
+      previewBtn = document.createElement('button');
       previewBtn.className = 'gui-file-btn';
       previewBtn.textContent = 'Off';
-      previewBtn.addEventListener('click', () => {
-        previewMode = !previewMode;
-        previewBtn.textContent = previewMode ? 'On' : 'Off';
-      });
+      previewBtn.addEventListener('click', () => setPreviewMode(!previewMode));
 
       previewRow.appendChild(previewLbl);
       previewRow.appendChild(previewBtn);
@@ -813,18 +843,13 @@ ${'</' + 'script>'}
       lbl.className = 'gui-label';
       lbl.textContent = 'Display';
 
-      const btn = document.createElement('button');
-      btn.className = 'gui-file-btn';
-      btn.textContent = 'Full Page';
-      btn.addEventListener('click', () => {
-        squareMode = !squareMode;
-        btn.textContent = squareMode ? 'Square' : 'Full Page';
-        document.body.classList.toggle('square-mode', squareMode);
-        onResize();
-      });
+      displayBtn = document.createElement('button');
+      displayBtn.className = 'gui-file-btn';
+      displayBtn.textContent = 'Full Page';
+      displayBtn.addEventListener('click', () => setSquareMode(!squareMode));
 
       row.appendChild(lbl);
-      row.appendChild(btn);
+      row.appendChild(displayBtn);
       guiBody.appendChild(row);
     }
 
@@ -833,6 +858,9 @@ ${'</' + 'script>'}
     const guiToggle = document.getElementById('gui-toggle');
     const guiBody = document.getElementById('gui-body');
     const guiHeader = guiToggle.closest('.gui-header');
+
+    // Per-param callbacks that redraw a control from params; filled in as controls are built
+    const guiSync = {};
 
     guiHeader.addEventListener('click', () => {
       const collapsed = guiBody.style.display === 'none';
@@ -890,11 +918,8 @@ ${'</' + 'script>'}
 
           swatch.addEventListener('click', () => {
             params[key] = color;
-            preview.style.backgroundColor = color;
-            hexVal.textContent = color;
+            guiSync[key]();
             onChange(color);
-            grid.querySelectorAll('.gui-swatch.selected').forEach(s => s.classList.remove('selected'));
-            swatch.classList.add('selected');
           });
 
           rowEl.appendChild(swatch);
@@ -908,9 +933,17 @@ ${'</' + 'script>'}
       });
 
       guiBody.appendChild(grid);
+
+      guiSync[key] = () => {
+        preview.style.backgroundColor = params[key];
+        hexVal.textContent = params[key];
+        grid.querySelectorAll('.gui-swatch').forEach(s => s.classList.toggle('selected', s.title === params[key]));
+      };
     }
 
-    function addSlider(label, key, min, max, step, fmt, onChange) {
+    function addSlider(label, key) {
+      const { min, max, step, fmt, onChange } = sliderDefs[key];
+
       const row = document.createElement('div');
       row.className = 'gui-row';
 
@@ -939,11 +972,38 @@ ${'</' + 'script>'}
       row.appendChild(slider);
       row.appendChild(val);
       guiBody.appendChild(row);
+
+      guiSync[key] = () => {
+        slider.value = params[key];
+        val.textContent = fmt(params[key]);
+      };
     }
 
     const f1 = v => v.toFixed(1);
     const f2 = v => v.toFixed(2);
     const fπ = v => (v / Math.PI).toFixed(2) + 'π';
+
+    const updateDirLightPosition = () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); };
+
+    // Declared up front so setState can apply slider limits before the sliders exist
+    const sliderDefs = {
+      cameraDistance:   { min: 0.5,  max: 6,           step: 0.05,           fmt: f2, onChange: v => { camera.position.z = v; } },
+      lookAtX:          { min: -1.5, max: 1.5,         step: 0.01,           fmt: f2 },
+      lookAtY:          { min: -1.5, max: 1.5,         step: 0.01,           fmt: f2 },
+      lookAtZ:          { min: -1.5, max: 1.5,         step: 0.01,           fmt: f2 },
+      rotCenterY:       { min: -2,   max: 3,           step: 0.1,            fmt: f1 },
+      rotRange:         { min: 0,    max: 3,           step: 0.1,            fmt: f1 },
+      rotStartAngle:    { min: 0,    max: Math.PI * 2, step: Math.PI * 0.05, fmt: fπ },
+      fps:              { min: 1,    max: 60,          step: 1,              fmt: v => String(Math.round(v)), onChange: updateFrameSliderMax },
+      cycleDuration:    { min: 500,  max: 10000,       step: 100,            fmt: v => Math.round(v) + ' ms', onChange: updateFrameSliderMax },
+      ambientIntensity: { min: 0,    max: 30,          step: 0.1,            fmt: f1, onChange: v => { ambientLight.intensity = v; } },
+      dirIntensity:     { min: 0,    max: 3,           step: 0.1,            fmt: f1, onChange: v => { directionalLight.intensity = v; } },
+      dirLightX:        { min: -20,  max: 20,          step: 0.5,            fmt: f1, onChange: updateDirLightPosition },
+      dirLightY:        { min: -20,  max: 20,          step: 0.5,            fmt: f1, onChange: updateDirLightPosition },
+      dirLightZ:        { min: -20,  max: 20,          step: 0.5,            fmt: f1, onChange: updateDirLightPosition },
+    };
+
+    const applyBackgroundColor = v => { scene.background.setStyle(v, THREE.NoColorSpace); };
 
     function addFileLoader() {
       const row = document.createElement('div');
@@ -985,34 +1045,155 @@ ${'</' + 'script>'}
     addSection('View');
     addViewToggle();
 
+    let guiReady = false;
+
     fetch('./color-palette.json')
       .then(r => r.json())
       .then(palette => {
         addSection('Background');
-        addPalette('Color', 'backgroundColor', palette, v => { scene.background.setStyle(v, THREE.NoColorSpace); });
+        addPalette('Color', 'backgroundColor', palette, applyBackgroundColor);
 
         addSection('Camera');
-        addSlider('Distance',  'cameraDistance', 0.5, 6,   0.05, f2, v => { camera.position.z = v; });
-        addSlider('Look At X', 'lookAtX',        -1.5, 1.5, 0.01, f2);
-        addSlider('Look At Y', 'lookAtY',        -1.5, 1.5, 0.01, f2);
-        addSlider('Look At Z', 'lookAtZ',        -1.5, 1.5, 0.01, f2);
+        addSlider('Distance',  'cameraDistance');
+        addSlider('Look At X', 'lookAtX');
+        addSlider('Look At Y', 'lookAtY');
+        addSlider('Look At Z', 'lookAtZ');
 
         addSection('Camera Orbit');
-        addSlider('Center Y',    'rotCenterY',    -2,         3,          0.1,   f1);
-        addSlider('Range',       'rotRange',       0,         3,          0.1,   f1);
-        addSlider('Start Angle', 'rotStartAngle',  0, Math.PI * 2, Math.PI * 0.05,  fπ);
-        addSlider('FPS',         'fps',            1,         60,         1,     v => String(Math.round(v)), updateFrameSliderMax);
-        addSlider('Cycle',       'cycleDuration',  500,       10000,      100,   v => Math.round(v) + ' ms', updateFrameSliderMax);
+        addSlider('Center Y',    'rotCenterY');
+        addSlider('Range',       'rotRange');
+        addSlider('Start Angle', 'rotStartAngle');
+        addSlider('FPS',         'fps');
+        addSlider('Cycle',       'cycleDuration');
 
         addSection('Ambient Light');
-        addSlider('Intensity', 'ambientIntensity', 0, 30, 0.1, f1, v => { ambientLight.intensity = v; });
+        addSlider('Intensity', 'ambientIntensity');
 
         addSection('Directional Light');
-        addSlider('Intensity',  'dirIntensity', 0,   3,  0.1, f1, v => { directionalLight.intensity = v; });
-        addSlider('Position X', 'dirLightX',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-        addSlider('Position Y', 'dirLightY',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
-        addSlider('Position Z', 'dirLightZ',   -20, 20,  0.5, f1, () => { directionalLight.position.set(params.dirLightX, params.dirLightY, params.dirLightZ); });
+        addSlider('Intensity',  'dirIntensity');
+        addSlider('Position X', 'dirLightX');
+        addSlider('Position Y', 'dirLightY');
+        addSlider('Position Z', 'dirLightZ');
+
+        guiReady = true;
       });
+
+    // --- Automation API ---
+
+    function validateStateValue(key, value) {
+      if (key === 'backgroundColor') {
+        if (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)) {
+          throw new TypeError(`backgroundColor must be a #RRGGBB string, got ${value}`);
+        }
+        return value.toUpperCase();
+      }
+      if (key === 'preview' || key === 'square') {
+        if (typeof value !== 'boolean') throw new TypeError(`${key} must be a boolean, got ${value}`);
+        return value;
+      }
+      if (key === 'startFrame' || Object.hasOwn(sliderDefs, key)) {
+        if (!Number.isFinite(value)) throw new TypeError(`${key} must be a finite number, got ${value}`);
+        return value;
+      }
+      throw new TypeError(`Unknown state key: ${key}`);
+    }
+
+    // Clamps and rounds exactly as a slider with these limits would
+    function snapToSlider(value, { min, max, step }) {
+      const probe = document.createElement('input');
+      probe.type = 'range';
+      probe.min = min;
+      probe.max = max;
+      probe.step = step;
+      probe.value = value;
+      return parseFloat(probe.value);
+    }
+
+    window.orbitune = {
+      isReady: () => guiReady,
+
+      isLoaded: () => modelLoaded,
+
+      getLoadError: () => loadError,
+
+      getState: () => ({
+        ...params,
+        startFrame: exportStartFrame,
+        preview: previewMode,
+        square: squareMode,
+      }),
+
+      setState(partial) {
+        // Validate everything first so a bad value leaves the state untouched
+        const state = {};
+        for (const [key, value] of Object.entries(partial)) {
+          state[key] = validateStateValue(key, value);
+        }
+
+        const sliderKeys = Object.keys(state).filter(key => Object.hasOwn(sliderDefs, key));
+        for (const key of sliderKeys) {
+          // Unchanged values skip the slider, whose rounding would alter the default rotStartAngle
+          if (state[key] !== params[key]) params[key] = snapToSlider(state[key], sliderDefs[key]);
+        }
+        // Run after all params are set: the Start Frame limit depends on fps and cycleDuration together
+        for (const key of sliderKeys) {
+          sliderDefs[key].onChange?.(params[key]);
+          guiSync[key]?.();
+        }
+
+        if (state.backgroundColor !== undefined) {
+          params.backgroundColor = state.backgroundColor;
+          applyBackgroundColor(state.backgroundColor);
+          guiSync.backgroundColor?.();
+        }
+        if (state.startFrame !== undefined) {
+          frameSlider.value = state.startFrame;
+          exportStartFrame = parseInt(frameSlider.value);
+          frameVal.textContent = exportStartFrame;
+        }
+        if (state.preview !== undefined) {
+          setPreviewMode(state.preview);
+        }
+        if (state.square !== undefined && state.square !== squareMode) {
+          setSquareMode(state.square);
+        }
+      },
+
+      getModelBounds() {
+        if (!currentModel) return null;
+        // Precise: includes the current morph and skinning pose, not just the rest geometry
+        const box = new THREE.Box3().setFromObject(currentModel, true);
+        if (box.isEmpty()) return null;
+        return {
+          min: { x: box.min.x, y: box.min.y, z: box.min.z },
+          max: { x: box.max.x, y: box.max.y, z: box.max.z },
+        };
+      },
+
+      renderFrame(frameIndex, size) {
+        if (!Number.isFinite(frameIndex)) throw new TypeError(`frameIndex must be a finite number, got ${frameIndex}`);
+        if (!Number.isInteger(size) || size <= 0) throw new RangeError(`size must be a positive integer, got ${size}`);
+
+        // Renders through the live pipeline at export settings, then restores it in the
+        // same task, so the browser never presents the intermediate canvas contents.
+        try {
+          renderer.setPixelRatio(1);
+          renderer.setSize(size, size, false);
+          composer.setPixelRatio(1);
+          composer.setSize(size, size);
+          camera.aspect = 1;
+          camera.updateProjectionMatrix();
+          fxaaPass.material.uniforms['resolution'].value.x = 1 / (size * 2);
+          fxaaPass.material.uniforms['resolution'].value.y = 1 / (size * 2);
+
+          onFrame(frameIndex * (1000 / params.fps));
+          return renderer.domElement.toDataURL('image/png');
+        } finally {
+          onResize();
+          onFrame(liveTimestamp);
+        }
+      },
+    };
   </script>
 </head>
 <body>
