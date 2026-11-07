@@ -1,6 +1,0 @@
-{
-  "type": "module",
-  "dependencies": {
-    "@gltf-transform/cli": "*"
-  }
-}
