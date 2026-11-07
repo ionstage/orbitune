@@ -1,7 +1,6 @@
 {
   "type": "module",
   "dependencies": {
-    "@gltf-transform/cli": "*",
-    "puppeteer": "*"
+    "@gltf-transform/cli": "*"
   }
 }
