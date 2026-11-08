@@ -182,6 +182,38 @@
       justify-content: center;
       background: #000;
     }
+
+    #crosshairs {
+      display: none;
+      mix-blend-mode: difference;
+      pointer-events: none;
+      position: fixed;
+    }
+
+    body.crosshairs #crosshairs {
+      display: block;
+    }
+
+    #crosshairs::before,
+    #crosshairs::after {
+      background: #fff;
+      content: '';
+      position: absolute;
+    }
+
+    #crosshairs::before {
+      height: 1px;
+      left: 0;
+      top: 50%;
+      width: 100%;
+    }
+
+    #crosshairs::after {
+      height: 100%;
+      left: 50%;
+      top: 0;
+      width: 1px;
+    }
   </style>
   <script type="module">
     import * as THREE from './js/lib/three/0.171.0/three.module.min.js';
@@ -286,6 +318,8 @@
     let previewBtn;
     let displayBtn;
     let squareMode = false;
+    let crosshairsBtn;
+    let crosshairsMode = false;
     let liveTimestamp = 0;
 
     function disposeModel() {
@@ -436,6 +470,14 @@
 
       fxaaPass.material.uniforms['resolution'].value.x = 1 / (width * window.devicePixelRatio * 2);
       fxaaPass.material.uniforms['resolution'].value.y = 1 / (height * window.devicePixelRatio * 2);
+
+      // Follows the canvas, which square mode centers with flexbox
+      const rect = renderer.domElement.getBoundingClientRect();
+      const crosshairs = document.getElementById('crosshairs');
+      crosshairs.style.left = rect.left + 'px';
+      crosshairs.style.top = rect.top + 'px';
+      crosshairs.style.width = rect.width + 'px';
+      crosshairs.style.height = rect.height + 'px';
     }
 
     let timeout = 0;
@@ -789,6 +831,12 @@ ${'</' + 'script>'}
       onResize();
     }
 
+    function setCrosshairsMode(enabled) {
+      crosshairsMode = enabled;
+      crosshairsBtn.textContent = crosshairsMode ? 'On' : 'Off';
+      document.body.classList.toggle('crosshairs', crosshairsMode);
+    }
+
     function addExportPreview() {
       const frameRow = document.createElement('div');
       frameRow.className = 'gui-row';
@@ -850,6 +898,24 @@ ${'</' + 'script>'}
 
       row.appendChild(lbl);
       row.appendChild(displayBtn);
+      guiBody.appendChild(row);
+    }
+
+    function addCrosshairsToggle() {
+      const row = document.createElement('div');
+      row.className = 'gui-row';
+
+      const lbl = document.createElement('span');
+      lbl.className = 'gui-label';
+      lbl.textContent = 'Crosshairs';
+
+      crosshairsBtn = document.createElement('button');
+      crosshairsBtn.className = 'gui-file-btn';
+      crosshairsBtn.textContent = 'Off';
+      crosshairsBtn.addEventListener('click', () => setCrosshairsMode(!crosshairsMode));
+
+      row.appendChild(lbl);
+      row.appendChild(crosshairsBtn);
       guiBody.appendChild(row);
     }
 
@@ -1044,6 +1110,7 @@ ${'</' + 'script>'}
 
     addSection('View');
     addViewToggle();
+    addCrosshairsToggle();
 
     let guiReady = false;
 
@@ -1087,7 +1154,7 @@ ${'</' + 'script>'}
         }
         return value.toUpperCase();
       }
-      if (key === 'preview' || key === 'square') {
+      if (key === 'preview' || key === 'square' || key === 'crosshairs') {
         if (typeof value !== 'boolean') throw new TypeError(`${key} must be a boolean, got ${value}`);
         return value;
       }
@@ -1121,6 +1188,7 @@ ${'</' + 'script>'}
         startFrame: exportStartFrame,
         preview: previewMode,
         square: squareMode,
+        crosshairs: crosshairsMode,
       }),
 
       setState(partial) {
@@ -1156,6 +1224,9 @@ ${'</' + 'script>'}
         }
         if (state.square !== undefined && state.square !== squareMode) {
           setSquareMode(state.square);
+        }
+        if (state.crosshairs !== undefined) {
+          setCrosshairsMode(state.crosshairs);
         }
       },
 
@@ -1198,6 +1269,7 @@ ${'</' + 'script>'}
 </head>
 <body>
   <canvas class="content"></canvas>
+  <div id="crosshairs"></div>
   <div id="gui">
     <div class="gui-header">
       <span>Controls</span>
